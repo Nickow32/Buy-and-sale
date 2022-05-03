@@ -9,8 +9,20 @@
         {{item.description}}
     </div>
     <div>
-        Цена - {{item.price}}, Прадовец - {{item.user.name}}
+        Цена - {{item.price}} дьенек, <a href="/user/{{item.user_id}}">Прадовец - {{item.user.name}}</a>
     </div>
+    {% if current_user.is_authenticated and current_user.id != item.user_id%}
+        <p>
+            {% if current_user.money >= item.price %}
+                <a class="btn btn-primary" href="/buy/{{item.id}}">!!!Купить!!!</a>
+            {% else %}
+                <a class="btn btn-danger" href="/"> Недостаточно дьенек</a>
+            {% endif %}
+            {% if not (item.id, current_user.id) in cart %}
+            <a class="btn btn-primary" href="/add_to_cart/{{item.id}}">В корзину</a>
+            {% endif %}
+        </p>
+    {% endif %}
 </div>
 {% endfor %}
 {% endblock %}

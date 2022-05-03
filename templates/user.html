@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>{{user.name}}</h1>
+{% if current_user.id == user.id%}
+<div>
+    <h2>Текущий капитал: {{ user.money }} дьенек </h2>
+    <a class="btn btn-primary" href="/money/{{current_user.id}}">Пополнить капитал</a>
+</div>
+{% endif %}
+<h2>Товары</h2>
+{% if current_user.id == user.id%}
+<a class="btn btn-primary" href="/product">Добавить товар</a>
+{% endif %}
+{% for item in products%}
+<div class="col-md6 border rounded">
+    <h3>{{item.title}}</h3>
+    <div>
+        {{item.description}}
+    </div>
+    <div>
+        Цена - {{item.price}} дьенек
+    </div>
+    {% if current_user.id == user.id %}
+    <div>
+        <a href="/product/{{ item.id }}" class="btn btn-warning">
+            Изменить
+        </a>
+        <a href="/product_delete/{{ item.id }}" class="btn btn-danger">
+            Удалить
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endfor %}
+<h2>Комментарии</h2>
+{% if current_user.id != user.id%}
+<a class="btn btn-primary" href="/add_comment/{{user.id}}">Оставить комментарий</a>
+{% endif %}
+{% for comm in comments %}
+<div class="col-md6 border rounded">
+    <h3>{{comm.author}}</h3>
+    <div>
+        {{comm.context}}
+    </div>
+    {% if current_user.id == user.id%}
+    <a href="/comment_delete/{{ comm.author }}" class="btn btn-danger">
+        Удалить
+    </a>
+    {% endif %}
+</div>
+{% endfor %}
+{% endblock %}
