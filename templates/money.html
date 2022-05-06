@@ -1,9 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1>Не работает!</h1>
-<div>Так как дьенки офицально не признаны валютой.</div>
-<div>За принесенные неудобства вам было начисленно 500 дьенек</div>
-<div>Теперь у вас {{user.money}} дьенек</div>
+<a class="btn btn-primary" href="/money/{{user.id}}">Заработать деньги</a>
+<div>Текущий счёт {{user.money}}<div>
 <div>Все вопросы в техподдержку 6-666-666-66-66</div>
 {% endblock %}

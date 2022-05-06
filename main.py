@@ -64,6 +64,11 @@ def logout():
     return redirect("/")
 
 
+@app.route('/help')
+def helping():
+    return render_template('help.html', title='Инструкция по применению!')
+
+
 @app.route('/register', methods=['GET', 'POST'])
 def reqister():
     form = RegisterForm()
@@ -229,7 +234,7 @@ def comment_delete(author):
 def money(user_id):
     session = db_session.create_session()
     user = session.query(User).get(user_id)
-    user.money += 500
+    user.money = int(max(user.money, 10) * 1.1)
     session.commit()
     return render_template('money.html', user=user, title=f"Дьенки")
 
