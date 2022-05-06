@@ -1,4 +1,5 @@
-from flask import Flask, render_template, redirect, request
+from flask import Flask, render_template, redirect, request, flash, make_response
+from flask_ngrok import run_with_ngrok
 from flask_restful import abort
 
 import shop_api
@@ -12,15 +13,19 @@ from forms.LoginForm import LoginForm
 from forms.ProductForm import ProductForm
 from forms.RegisterForm import RegisterForm
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
-from flask_ngrok import run_with_ngrok
 
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app = Flask(__name__)
 run_with_ngrok(app)
 app.register_blueprint(shop_api.blueprint)
-
 app.config['SECRET_KEY'] = 'yandexlyceum_secret_key'
 login_manager = LoginManager()
 login_manager.init_app(app)
+
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
 @app.route("/")
@@ -82,6 +87,47 @@ def reqister():
         db_sess.commit()
         return redirect('/login')
     return render_template('register.html', title='Регистрация', form=form)
+
+
+@app.route('/user/<int:user_id>', methods=["GET", "POST"])
+def user(user_id):
+    session = db_session.create_session()
+    user = session.query(User).get(user_id)
+    products = session.query(Product).filter(Product.user_id == user_id)
+    comments = session.query(Comment).filter(Comment.receiver == user_id)
+    return render_template('user.html', user=user, title=f"Пользователь {user.name}",
+                           products=products, comments=comments)
+
+
+@app.route('/userava')
+@login_required
+def userava():
+    img = current_user.getAvatar(app)
+    if not img:
+        return ""
+    h = make_response(img)
+    h.headers['Content-Type'] = 'image/png'
+    return h
+
+
+@app.route('/upload', methods=["POST", "GET"])
+@login_required
+def upload():
+    if request.method == 'POST':
+        session = db_session.create_session()
+        file = request.files['file']
+        if file and current_user.verifyExt(file.filename):
+            try:
+                img = file.read()
+                user = session.query(User).get(current_user.id)
+                user.avatar = img
+                session.commit()
+                flash("Аватар обновлен", "success")
+            except FileNotFoundError as e:
+                flash("Ошибка чтения файла", "error")
+        else:
+            flash("Ошибка обновления аватара", "error")
+    return redirect(f'/user/{current_user.id}')
 
 
 @app.route('/product', methods=['GET', 'POST'])
@@ -177,6 +223,65 @@ def comment_delete(author):
     else:
         abort(404)
     return redirect(f'/user/{current_user.id}')
+
+
+@app.route('/money/<int:user_id>')
+def money(user_id):
+    session = db_session.create_session()
+    user = session.query(User).get(user_id)
+    user.money += 500
+    session.commit()
+    return render_template('money.html', user=user, title=f"Дьенки")
+
+
+@app.route('/buy/<int:product_id>')
+def buy(product_id):
+    session = db_session.create_session()
+    product = session.query(Product).get(product_id)
+    user = session.query(User).get(product.user_id)
+    user2 = session.query(User).get(current_user.id)
+    user.money += product.price
+    user2.money -= product.price
+    product.user_id = current_user.id
+    session.commit()
+    return render_template('buy.html', title=f"Поздравляем с покупкой!")
+
+
+@app.route('/add_to_cart/<int:product_id>')
+def add_to_cart(product_id):
+    session = db_session.create_session()
+    product = session.query(Product).get(product_id)
+    user = session.query(User).get(current_user.id)
+    cart = Cart(user=user.id, product=product.id)
+    session.add(cart)
+    session.commit()
+    return redirect("/")
+
+
+@app.route('/cart/<int:user_id>')
+def cart(user_id):
+    session = db_session.create_session()
+    cart = session.query(Cart).filter(Cart.user == user_id).all()
+    products = [session.query(Product).filter(Product.id == i.product).first() for i in cart]
+    summ = sum([i.price for i in products])
+    return render_template("cart.html", title="Корзинка", products=products, summ=summ)
+
+
+@app.route('/buy_cart/<int:user_id>')
+def buy_cart(user_id):
+    session = db_session.create_session()
+    user = session.query(User).get(current_user.id)
+    cart = session.query(Cart).filter(Cart.user == user_id).all()
+    products = [session.query(Product).filter(Product.id == i.product).first() for i in cart]
+    for i in products:
+        user.money -= i.price
+        user2 = session.query(User).get(i.user_id)
+        user2.money += i.price
+        i.user_id = current_user.id
+        product = session.query(Cart).filter(Cart.user == user_id, Cart.product == i.id).first()
+        session.delete(product)
+        session.commit()
+    return render_template("buy.html", title="Поздравляем с покупкой!")
 
 
 def main():

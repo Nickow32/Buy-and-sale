@@ -1,7 +1,16 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1>{{user.name}}</h1>
+<table>
+    <tr>
+        <td><img src="{{ url_for('userava') }}" height="100"></td>
+        <td><h1>Пользователь: {{user.name}}</h1></td>
+    </tr>
+</table>
+<form action="{{url_for('upload')}}" method="POST" enctype="multipart/form-data">
+    <input type="file" name="file">
+    <input type="submit" value="Загрузить">
+</form>
 {% if current_user.id == user.id%}
 <div>
     <h2>Текущий капитал: {{ user.money }} дьенек </h2>

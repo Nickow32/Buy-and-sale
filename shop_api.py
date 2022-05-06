@@ -1,10 +1,7 @@
 import flask
-from flask import render_template, redirect
-from flask_login import current_user
+from flask import jsonify, request
 
 from data import db_session
-from data.cart import Cart
-from data.comments import Comment
 from data.products import Product
 from data.users import User
 
@@ -15,70 +12,146 @@ blueprint = flask.Blueprint(
 )
 
 
-@blueprint.route('/user/<int:user_id>')
+@blueprint.route('/api/user/<int:user_id>', methods=["GET"])
 def get_user(user_id):
     session = db_session.create_session()
     user = session.query(User).get(user_id)
-    products = session.query(Product).filter(Product.user_id == user_id)
-    comments = session.query(Comment).filter(Comment.receiver == user_id)
-    return render_template('user.html', user=user, title=f"Пользователь {user.name}",
-                           products=products, comments=comments)
+    if not user:
+        return jsonify({"error": "User not found"})
+    return jsonify(
+        {
+            "user": [user.to_dict(only=("name", "email", "phone", "money"))]
+        }
+    )
 
 
-@blueprint.route('/money/<int:user_id>')
-def money(user_id):
+@blueprint.route('/api/user/<int:user_id>', methods=["DELETE"])
+def delete_user(user_id):
     session = db_session.create_session()
     user = session.query(User).get(user_id)
-    user.money += 500
+    if not user:
+        return jsonify({"error": "User not found"})
+    session.delete(user)
     session.commit()
-    return render_template('money.html', user=user, title=f"Дьенки")
+    return jsonify({'success': 'OK'})
 
 
-@blueprint.route('/buy/<int:product_id>')
-def buy(product_id):
+@blueprint.route('/api/user/<int:user_id>', methods=["PUT"])
+def change_user(user_id):
+    if not request.json:
+        return jsonify({'error': 'Empty request'})
+    elif not all(key in request.json for key in
+                 ['name', 'phone', 'email']):
+        return jsonify({'error': 'Bad request'})
+    session = db_session.create_session()
+    user = session.query(User).get(user_id)
+    if not user:
+        return jsonify({"error": "User not found"})
+    user.name = request.json['name']
+    user.phone = request.json['phone']
+    user.email = request.json['email']
+    session.commit()
+    return jsonify({'success': 'OK'})
+
+
+@blueprint.route('/api/user', methods=["GET"])
+def get_users():
+    session = db_session.create_session()
+    users = session.query(User).all()
+    return jsonify(
+        {
+            "users": [item.to_dict(only=("name", "email", "phone", "money")) for item in users]
+        }
+    )
+
+
+@blueprint.route('/api/user', methods=["POST"])
+def post_user():
+    if not request.json:
+        return jsonify({'error': 'Empty request'})
+    elif not all(key in request.json for key in
+                 ['name', 'phone', 'email', 'hashed_password', "money"]):
+        return jsonify({'error': 'Bad request'})
+    session = db_session.create_session()
+    user = User(
+        name=request.json['name'],
+        phone=request.json['phone'],
+        email=request.json['email'],
+        hashed_password=request.json['hashed_password'],
+        money=request.json['money']
+    )
+    session.add(user)
+    session.commit()
+    return jsonify({'success': 'OK'})
+
+
+@blueprint.route('/api/product/<int:product_id>', methods=["GET"])
+def get_product(product_id):
     session = db_session.create_session()
     product = session.query(Product).get(product_id)
-    user = session.query(User).get(product.user_id)
-    user2 = session.query(User).get(current_user.id)
-    user.money += product.price
-    user2.money -= product.price
-    product.user_id = current_user.id
-    session.commit()
-    return render_template('buy.html', title=f"Поздравляем с покупкой!")
+    if not product:
+        return jsonify({"error": "Product not found"})
+    return jsonify(
+        {
+            "user": [product.to_dict(only=("title", "description", "price"))]
+        }
+    )
 
 
-@blueprint.route('/add_to_cart/<int:product_id>')
-def add_to_cart(product_id):
+@blueprint.route('/api/product/<int:product_id>', methods=["PUT"])
+def change_product(product_id):
+    if not request.json:
+        return jsonify({'error': 'Empty request'})
+    elif not all(key in request.json for key in
+                 ["title", "description", "price", "user_id"]):
+        return jsonify({'error': 'Bad request'})
     session = db_session.create_session()
     product = session.query(Product).get(product_id)
-    user = session.query(User).get(current_user.id)
-    cart = Cart(user=user.id, product=product.id)
-    session.add(cart)
+    if not product:
+        return jsonify({"error": "Product not found"})
+    product.name = request.json['title']
+    product.phone = request.json['description']
+    product.email = request.json['price']
+    product.email = request.json['user_id']
     session.commit()
-    return redirect("/")
+    return jsonify({'success': 'OK'})
 
 
-@blueprint.route('/cart/<int:user_id>')
-def cart(user_id):
+@blueprint.route('/api/product/<int:product_id>', methods=["DELETE"])
+def delete_product(product_id):
     session = db_session.create_session()
-    cart = session.query(Cart).filter(Cart.user == user_id).all()
-    products = [session.query(Product).filter(Product.id == i.product).first() for i in cart]
-    summ = sum([i.price for i in products])
-    return render_template("cart.html", title="Корзинка", products=products, summ=summ)
+    product = session.query(Product).get(product_id)
+    if not product:
+        return jsonify({"error": "Product not found"})
+    session.delete(product)
+    session.commit()
+    return jsonify({'success': 'OK'})
 
 
-@blueprint.route('/buy_cart/<int:user_id>')
-def buy_cart(user_id):
+@blueprint.route('/api/product', methods=["GET"])
+def get_products():
     session = db_session.create_session()
-    user = session.query(User).get(current_user.id)
-    cart = session.query(Cart).filter(Cart.user == user_id).all()
-    products = [session.query(Product).filter(Product.id == i.product).first() for i in cart]
-    for i in products:
-        user.money -= i.price
-        user2 = session.query(User).get(i.user_id)
-        user2.money += i.price
-        i.user_id = current_user.id
-        product = session.query(Cart).filter(Cart.user == user_id, Cart.product == i.id).first()
-        session.delete(product)
-        session.commit()
-    return render_template("buy.html", title="Поздравляем с покупкой!")
+    users = session.query(Product).all()
+    return jsonify(
+        {
+            "products": [item.to_dict(only=("title", "description", "price")) for item in users]
+        }
+    )
+
+
+@blueprint.route('/api/product', methods=["POST"])
+def post_product():
+    if not request.json:
+        return jsonify({'error': 'Empty request'})
+    elif not all(key in request.json for key in
+                 ["title", "description", "price"]):
+        return jsonify({'error': 'Bad request'})
+    session = db_session.create_session()
+    product = Product(
+        title=request.json['title'],
+        description=request.json['description'],
+        price=request.json['price']
+    )
+    session.add(product)
+    session.commit()
+    return jsonify({'success': 'OK'})
