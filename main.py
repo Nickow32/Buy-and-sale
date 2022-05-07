@@ -104,10 +104,11 @@ def user(user_id):
                            products=products, comments=comments)
 
 
-@app.route('/userava')
-@login_required
-def userava():
-    img = current_user.getAvatar(app)
+@app.route('/userava/<int:user_id>')
+def userava(user_id):
+    session = db_session.create_session()
+    user = session.query(User).get(user_id)
+    img = user.getAvatar(app)
     if not img:
         return ""
     h = make_response(img)

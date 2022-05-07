@@ -3,7 +3,7 @@
 {% block content %}
 <table>
     <tr>
-        <td><img src="{{ url_for('userava') }}" height="100"></td>
+        <td><img src="/userava/{{user.id}}" height="100"></td>
         <td><h1>Пользователь: {{user.name}}</h1></td>
     </tr>
 </table>
