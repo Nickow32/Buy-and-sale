@@ -43,7 +43,7 @@
 </div>
 {% endfor %}
 <h2>Комментарии</h2>
-{% if current_user.id != user.id%}
+{% if current_user.is_authenticated and current_user.id != user.id%}
 <a class="btn btn-primary" href="/add_comment/{{user.id}}">Оставить комментарий</a>
 {% endif %}
 {% for comm in comments %}

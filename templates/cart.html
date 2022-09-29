@@ -15,6 +15,12 @@
 {% endfor %}
 <div>
     <h3>Итого {{ summ }} дьенек</h3>
-    <a class="btn btn-primary" href="/buy_cart/{{current_user.id}}">Купить!</a>
+    <a class="btn btn-primary" href="/buy_cart/{{current_user.id}}">
+        {% if money >= summ %}
+        Купить!
+        {% else %}
+        Взять в кредит!
+        {% endif %}
+    </a>
 </div>
 {% endblock %}

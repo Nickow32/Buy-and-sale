@@ -16,7 +16,7 @@ from flask_login import LoginManager, login_user, login_required, logout_user, c
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app = Flask(__name__)
-run_with_ngrok(app)
+#run_with_ngrok(app)
 app.register_blueprint(shop_api.blueprint)
 app.config['SECRET_KEY'] = 'yandexlyceum_secret_key'
 login_manager = LoginManager()
@@ -33,7 +33,8 @@ def index():
     db_sess = db_session.create_session()
     products = db_sess.query(Product)
     cart = [(i.product, i.user) for i in db_sess.query(Cart).all()]
-    return render_template("index.html", products=products, cart=cart, title="Купи-продай")
+    users = db_sess.query(User)
+    return render_template("index.html", products=products, cart=cart, users=users, title="Купи-продай")
 
 
 @login_manager.user_loader
@@ -235,7 +236,7 @@ def comment_delete(author):
 def money(user_id):
     session = db_session.create_session()
     user = session.query(User).get(user_id)
-    user.money = int(max(user.money, 10) * 1.1)
+    user.money = user.money + 1 if user.money < 10 else user.money * 1.2
     session.commit()
     return render_template('money.html', user=user, title=f"Дьенки")
 
@@ -269,8 +270,9 @@ def cart(user_id):
     session = db_session.create_session()
     cart = session.query(Cart).filter(Cart.user == user_id).all()
     products = [session.query(Product).filter(Product.id == i.product).first() for i in cart]
+    user = session.query(User).filter(User.id == user_id).one()
     summ = sum([i.price for i in products])
-    return render_template("cart.html", title="Корзинка", products=products, summ=summ)
+    return render_template("cart.html", title="Корзинка", products=products, money=user.money, summ=summ)
 
 
 @app.route('/buy_cart/<int:user_id>')
