@@ -1,6 +1,7 @@
 from flask import Flask, render_template, redirect, request, flash, make_response
 from flask_ngrok import run_with_ngrok
 from flask_restful import abort
+from requests import session
 
 import shop_api
 from data import db_session
@@ -236,7 +237,9 @@ def comment_delete(author):
 def money(user_id):
     session = db_session.create_session()
     user = session.query(User).get(user_id)
-    user.money = user.money + 1 if user.money < 10 else user.money * 1.2
+    user.money = int(user.money - user.money * 0.5) if user.money < 0 else int((user.money + 1) * 1.2)
+    if user.money > 10 ** 6:
+        return redirect(f"/deleted_account/{current_user.id}")
     session.commit()
     return render_template('money.html', user=user, title=f"Дьенки")
 
@@ -289,7 +292,21 @@ def buy_cart(user_id):
         product = session.query(Cart).filter(Cart.user == user_id, Cart.product == i.id).first()
         session.delete(product)
         session.commit()
+    if user.money < -10 ** 6:
+        return redirect(f"/deleted_account/{current_user.id}")
     return render_template("buy.html", title="Поздравляем с покупкой!")
+
+
+@app.route('/deleted_account/<int:user_id>')
+def delete_account(user_id):
+    session = db_session.create_session()
+    session.query(Comment).filter(Comment.receiver == user_id).delete()
+    session.query(Cart).filter(Cart.user == user_id).delete()
+    session.query(Product).filter(Product.user_id == user_id).delete()
+    session.query(User).filter(User.id == user_id).delete()
+    session.commit()
+    logout_user()
+    return render_template("deleted_account.html", title="Ваш аккаунт был удалён")
 
 
 def main():
