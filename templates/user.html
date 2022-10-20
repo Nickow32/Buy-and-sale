@@ -25,10 +25,12 @@
 <div class="col-md6 border rounded">
     <h3>{{item.title}}</h3>
     <div>
+        <p>Категория</p>
+        {{item.category_.title}}
+        <p>Описание</p>
         {{item.description}}
-    </div>
-    <div>
-        Цена - {{item.price}} дьенек
+        <p>Цена</p>
+        {{item.price}} дьенек
     </div>
     {% if current_user.id == user.id %}
     <div>

@@ -9,6 +9,7 @@ from data.cart import Cart
 from data.comments import Comment
 from data.products import Product
 from data.users import User
+from data.category import Category
 from forms.CommentForm import CommentForm
 from forms.LoginForm import LoginForm
 from forms.ProductForm import ProductForm
@@ -100,8 +101,8 @@ def reqister():
 def user(user_id):
     session = db_session.create_session()
     user = session.query(User).get(user_id)
-    products = session.query(Product).filter(Product.user_id == user_id)
     comments = session.query(Comment).filter(Comment.receiver == user_id)
+    products = session.query(Product).filter(Product.user_id == user_id)
     return render_template('user.html', user=user, title=f"Пользователь {user.name}",
                            products=products, comments=comments)
 
@@ -143,18 +144,21 @@ def add_product():
     form = ProductForm()
     if not current_user.is_authenticated:
         return redirect('/')
+    session = db_session.create_session()
     if form.validate_on_submit():
+        category = form.category.data
+        category_id = session.query(Category).filter(Category.title == category).first().id
         product = Product(
             title=form.title.data,
             price=form.price.data,
             description=form.description.data,
-            user_id=current_user.id
+            user_id=current_user.id,
+            category=category_id
         )
-        session = db_session.create_session()
         session.add(product)
         session.commit()
         return redirect(f'/user/{current_user.id}')
-    return render_template('add_product.html', title='Добавление товара', form=form)
+    return render_template('add_product.html', title='Добавление товара', form=form, categoryes=session.query(Category).all())
 
 
 @app.route('/product/<int:id>', methods=['GET', 'POST'])
