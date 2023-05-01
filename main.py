@@ -1,5 +1,4 @@
 from flask import Flask, render_template, redirect, request, flash, make_response
-from flask_ngrok import run_with_ngrok
 from flask_restful import abort
 
 import shop_api
@@ -16,7 +15,6 @@ from flask_login import LoginManager, login_user, login_required, logout_user, c
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app = Flask(__name__)
-run_with_ngrok(app)
 app.register_blueprint(shop_api.blueprint)
 app.config['SECRET_KEY'] = 'yandexlyceum_secret_key'
 login_manager = LoginManager()
