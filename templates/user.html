@@ -44,20 +44,28 @@
     {% endif %}
 </div>
 {% endfor %}
+
+<!--Комментарии-->
+
 <h2>Комментарии</h2>
 {% if current_user.is_authenticated and current_user.id != user.id%}
 <a class="btn btn-primary" href="/add_comment/{{user.id}}">Оставить комментарий</a>
 {% endif %}
 {% for comm in comments %}
 <div class="col-md6 border rounded">
-    <h3>{{comm.author}}</h3>
+    <h3>{{comm.author_id}}</h3>
     <div>
         {{comm.context}}
     </div>
-    {% if current_user.id == user.id%}
-    <a href="/comment_delete/{{ comm.author }}" class="btn btn-danger">
-        Удалить
-    </a>
+    {% if current_user.id == comm.author_id%}
+    <div>
+        <a href="/comment_delete/{{ comm.id }}" class="btn btn-danger">
+            Удалить
+        </a>
+        <a href="/comment_edit/{{ comm.id }}" class="btn btn-warning">
+            Редактировать
+        </a>
+    </div>
     {% endif %}
 </div>
 {% endfor %}

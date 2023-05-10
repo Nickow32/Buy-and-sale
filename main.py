@@ -101,7 +101,7 @@ def reqister():
 def user(user_id):
     session = db_session.create_session()
     user = session.query(User).get(user_id)
-    comments = session.query(Comment).filter(Comment.receiver == user_id)
+    comments = session.query(Comment).filter(Comment.receiver_id == user_id)
     products = session.query(Product).filter(Product.user_id == user_id)
     return render_template('user.html', user=user, title=f"Пользователь {user.name}",
                            products=products, comments=comments)
@@ -212,8 +212,8 @@ def add_comment(user_id):
     if form.validate_on_submit():
         session = db_session.create_session()
         comment = Comment(
-            author=current_user.name,
-            receiver=user_id,
+            author_id=current_user.id,
+            receiver_id=user_id,
             context=form.context.data
         )
         session.add(comment)
@@ -222,28 +222,37 @@ def add_comment(user_id):
     return render_template('add_comment.html', title='Добавление комментария', form=form)
 
 
-@app.route('/comment_delete/<string:author>', methods=['GET', 'POST'])
+@app.route('/comment_delete/<int:comm_id>', methods=['GET', 'POST'])
 @login_required
-def comment_delete(author):
+def comment_delete(comm_id):
     db_sess = db_session.create_session()
-    comment = db_sess.query(Comment).filter(Comment.author == author, Comment.receiver == current_user.id).first()
+    comment = db_sess.query(Comment).filter(Comment.id == comm_id).first()
+    user = comment.receiver_id
     if not comment:
-        return redirect('/')
-    if comment:
-        db_sess.delete(comment)
-        db_sess.commit()
-    else:
         abort(404)
-    return redirect(f'/user/{current_user.id}')
+    db_sess.delete(comment)
+    db_sess.commit()
+    return redirect(f'/user/{user}')
 
+@app.route('/comment_edit/<int:comm_id>', methods=['GET', 'POST'])
+@login_required
+def comment_edit(comm_id):
+    form = CommentForm()
+    if not current_user.is_authenticated:
+        return redirect('/')
+    if form.validate_on_submit():
+        session = db_session.create_session()
+        comment = session.query(Comment).filter(Comment.id == comm_id).first()
+        comment.context = form.context.data
+        session.commit()
+        return redirect(f'/user/{comment.receiver_id}')
+    return render_template('edit_comment.html', title='Изменение комментария', form=form)
 
 @app.route('/money/<int:user_id>')
 def money(user_id):
     session = db_session.create_session()
     user = session.query(User).get(user_id)
     user.money = int(user.money - user.money * 0.5) if user.money < 0 else int((user.money + 1) * 1.2)
-    if user.money > 10 ** 6:
-        return redirect(f"/deleted_account/{current_user.id}")
     session.commit()
     return render_template('money.html', user=user, title=f"Дьенки")
 
@@ -296,22 +305,7 @@ def buy_cart(user_id):
         product = session.query(Cart).filter(Cart.user == user_id, Cart.product == i.id).first()
         session.delete(product)
         session.commit()
-    if user.money < -10 ** 6:
-        return redirect(f"/deleted_account/{current_user.id}")
     return render_template("buy.html", title="Поздравляем с покупкой!")
-
-
-@app.route('/deleted_account/<int:user_id>')
-def delete_account(user_id):
-    session = db_session.create_session()
-    session.query(Comment).filter(Comment.receiver == user_id).delete()
-    session.query(Cart).filter(Cart.user == user_id).delete()
-    session.query(Product).filter(Product.user_id == user_id).delete()
-    session.query(User).filter(User.id == user_id).delete()
-    session.commit()
-    logout_user()
-    return render_template("deleted_account.html", title="Ваш аккаунт был удалён")
-
 
 def main():
     app.run()
