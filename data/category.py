@@ -11,4 +11,5 @@ class Category(SqlAlchemyBase, SerializerMixin):
     id = sqlalchemy.Column(sqlalchemy.Integer,
                            primary_key=True, autoincrement=True)
     title = sqlalchemy.Column(sqlalchemy.String)
+    
     product_ = orm.relation('Product', back_populates='category_')

@@ -139,15 +139,14 @@ def upload():
     return redirect(f'/user/{current_user.id}')
 
 
-@app.route('/product', methods=['GET', 'POST'])
+@app.route('/add_product', methods=['GET', 'POST'])
 def add_product():
     form = ProductForm()
     if not current_user.is_authenticated:
         return redirect('/')
     session = db_session.create_session()
     if form.validate_on_submit():
-        category = form.category.data
-        category_id = session.query(Category).filter(Category.title == category).first().id
+        category_id = form.category.data
         product = Product(
             title=form.title.data,
             price=form.price.data,
@@ -162,7 +161,7 @@ def add_product():
 
 
 @app.route('/product/<int:id>', methods=['GET', 'POST'])
-def product(id):
+def edit_product(id):
     form = ProductForm()
     if request.method == "GET":
         db_sess = db_session.create_session()
@@ -172,6 +171,7 @@ def product(id):
         if product:
             form.title.data = product.title
             form.price.data = product.price
+            form.category.data = product.category
             form.description.data = product.description
         else:
             abort(404)
@@ -181,12 +181,13 @@ def product(id):
         if product:
             product.title = form.title.data
             product.price = form.price.data
+            product.category = form.category.data
             product.description = form.description.data
             db_sess.commit()
             return redirect(f'/user/{current_user.id}')
         else:
             abort(404)
-    return render_template('add_product.html', title='Редактирование товара', form=form)
+    return render_template('edit_product.html', title='Редактирование товара', form=form)
 
 
 @app.route('/product_delete/<int:id>', methods=['GET', 'POST'])
