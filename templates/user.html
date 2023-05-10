@@ -7,28 +7,32 @@
         <td><h1>Пользователь: {{user.name}}</h1></td>
     </tr>
 </table>
+
 <form action="{{url_for('upload')}}" method="POST" enctype="multipart/form-data">
     <input type="file" name="file">
-    <input type="submit" value="Загрузить">
+    <input type="submit" value="Загрузить аватар">
 </form>
+
 {% if current_user.id == user.id%}
 <div>
-    <h2>Текущий капитал: {{ user.money }} дьенек </h2>
+    <h2>Текущий капитал: {{ user.money }} денег </h2>
     <a class="btn btn-primary" href="/money/{{current_user.id}}">Пополнить капитал</a>
 </div>
 {% endif %}
 <h2>Товары</h2>
 {% if current_user.id == user.id%}
-<a class="btn btn-primary" href="/product">Добавить товар</a>
+<a class="btn btn-primary" href="/add_product">Добавить товар</a>
 {% endif %}
 {% for item in products%}
 <div class="col-md6 border rounded">
     <h3>{{item.title}}</h3>
     <div>
-        {{item.description}}
-    </div>
-    <div>
-        Цена - {{item.price}} дьенек
+        <p><b>Категория:</b>
+        {{item.category_.title}}</p>
+        <p><b>Описание:</b>
+        {{item.description}}</p>
+        <p><b>Цена:</b>
+        {{item.price}} денег</p>
     </div>
     {% if current_user.id == user.id %}
     <div>
@@ -42,20 +46,32 @@
     {% endif %}
 </div>
 {% endfor %}
+
+<!--Комментарии-->
+
 <h2>Комментарии</h2>
-{% if current_user.id != user.id%}
+{% if current_user.is_authenticated and current_user.id != user.id%}
 <a class="btn btn-primary" href="/add_comment/{{user.id}}">Оставить комментарий</a>
 {% endif %}
 {% for comm in comments %}
 <div class="col-md6 border rounded">
-    <h3>{{comm.author}}</h3>
+    <h3>
+        Автор комментария:
+         <a href="/user/{{ comm.author.id }}">{{comm.author.name}}</a>
+        <img src="/userava/{{ comm.author.id }}" height="50">
+    </h3>
     <div>
         {{comm.context}}
     </div>
-    {% if current_user.id == user.id%}
-    <a href="/comment_delete/{{ comm.author }}" class="btn btn-danger">
-        Удалить
-    </a>
+    {% if current_user.id == comm.author_id%}
+    <div>
+        <a href="/comment_delete/{{ comm.id }}" class="btn btn-danger">
+            Удалить
+        </a>
+        <a href="/comment_edit/{{ comm.id }}" class="btn btn-warning">
+            Редактировать
+        </a>
+    </div>
     {% endif %}
 </div>
 {% endfor %}

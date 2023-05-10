@@ -1,5 +1,6 @@
 from flask import Flask, render_template, redirect, request, flash, make_response
 from flask_restful import abort
+from requests import session
 
 import shop_api
 from data import db_session
@@ -7,6 +8,7 @@ from data.cart import Cart
 from data.comments import Comment
 from data.products import Product
 from data.users import User
+from data.category import Category
 from forms.CommentForm import CommentForm
 from forms.LoginForm import LoginForm
 from forms.ProductForm import ProductForm
@@ -31,7 +33,8 @@ def index():
     db_sess = db_session.create_session()
     products = db_sess.query(Product)
     cart = [(i.product, i.user) for i in db_sess.query(Cart).all()]
-    return render_template("index.html", products=products, cart=cart, title="Купи-продай")
+    users = db_sess.query(User)
+    return render_template("index.html", products=products, cart=cart, users=users, title="Купи-продай")
 
 
 @login_manager.user_loader
@@ -96,8 +99,8 @@ def reqister():
 def user(user_id):
     session = db_session.create_session()
     user = session.query(User).get(user_id)
+    comments = session.query(Comment).filter(Comment.receiver_id == user_id)
     products = session.query(Product).filter(Product.user_id == user_id)
-    comments = session.query(Comment).filter(Comment.receiver == user_id)
     return render_template('user.html', user=user, title=f"Пользователь {user.name}",
                            products=products, comments=comments)
 
@@ -134,27 +137,29 @@ def upload():
     return redirect(f'/user/{current_user.id}')
 
 
-@app.route('/product', methods=['GET', 'POST'])
+@app.route('/add_product', methods=['GET', 'POST'])
 def add_product():
     form = ProductForm()
     if not current_user.is_authenticated:
         return redirect('/')
+    session = db_session.create_session()
     if form.validate_on_submit():
+        category_id = form.category.data
         product = Product(
             title=form.title.data,
             price=form.price.data,
             description=form.description.data,
-            user_id=current_user.id
+            user_id=current_user.id,
+            category=category_id
         )
-        session = db_session.create_session()
         session.add(product)
         session.commit()
         return redirect(f'/user/{current_user.id}')
-    return render_template('add_product.html', title='Добавление товара', form=form)
+    return render_template('add_product.html', title='Добавление товара', form=form, categoryes=session.query(Category).all())
 
 
 @app.route('/product/<int:id>', methods=['GET', 'POST'])
-def product(id):
+def edit_product(id):
     form = ProductForm()
     if request.method == "GET":
         db_sess = db_session.create_session()
@@ -164,6 +169,7 @@ def product(id):
         if product:
             form.title.data = product.title
             form.price.data = product.price
+            form.category.data = product.category
             form.description.data = product.description
         else:
             abort(404)
@@ -173,12 +179,13 @@ def product(id):
         if product:
             product.title = form.title.data
             product.price = form.price.data
+            product.category = form.category.data
             product.description = form.description.data
             db_sess.commit()
             return redirect(f'/user/{current_user.id}')
         else:
             abort(404)
-    return render_template('add_product.html', title='Редактирование товара', form=form)
+    return render_template('edit_product.html', title='Редактирование товара', form=form)
 
 
 @app.route('/product_delete/<int:id>', methods=['GET', 'POST'])
@@ -204,8 +211,8 @@ def add_comment(user_id):
     if form.validate_on_submit():
         session = db_session.create_session()
         comment = Comment(
-            author=current_user.name,
-            receiver=user_id,
+            author_id=current_user.id,
+            receiver_id=user_id,
             context=form.context.data
         )
         session.add(comment)
@@ -214,26 +221,37 @@ def add_comment(user_id):
     return render_template('add_comment.html', title='Добавление комментария', form=form)
 
 
-@app.route('/comment_delete/<string:author>', methods=['GET', 'POST'])
+@app.route('/comment_delete/<int:comm_id>', methods=['GET', 'POST'])
 @login_required
-def comment_delete(author):
+def comment_delete(comm_id):
     db_sess = db_session.create_session()
-    comment = db_sess.query(Comment).filter(Comment.author == author, Comment.receiver == current_user.id).first()
+    comment = db_sess.query(Comment).filter(Comment.id == comm_id).first()
+    user = comment.receiver_id
     if not comment:
-        return redirect('/')
-    if comment:
-        db_sess.delete(comment)
-        db_sess.commit()
-    else:
         abort(404)
-    return redirect(f'/user/{current_user.id}')
+    db_sess.delete(comment)
+    db_sess.commit()
+    return redirect(f'/user/{user}')
 
+@app.route('/comment_edit/<int:comm_id>', methods=['GET', 'POST'])
+@login_required
+def comment_edit(comm_id):
+    form = CommentForm()
+    if not current_user.is_authenticated:
+        return redirect('/')
+    if form.validate_on_submit():
+        session = db_session.create_session()
+        comment = session.query(Comment).filter(Comment.id == comm_id).first()
+        comment.context = form.context.data
+        session.commit()
+        return redirect(f'/user/{comment.receiver_id}')
+    return render_template('edit_comment.html', title='Изменение комментария', form=form)
 
 @app.route('/money/<int:user_id>')
 def money(user_id):
     session = db_session.create_session()
     user = session.query(User).get(user_id)
-    user.money = int(max(user.money, 10) * 1.1)
+    user.money = int(user.money - user.money * 0.5) if user.money < 0 else int((user.money + 1) * 1.2)
     session.commit()
     return render_template('money.html', user=user, title=f"Дьенки")
 
@@ -267,8 +285,9 @@ def cart(user_id):
     session = db_session.create_session()
     cart = session.query(Cart).filter(Cart.user == user_id).all()
     products = [session.query(Product).filter(Product.id == i.product).first() for i in cart]
+    user = session.query(User).filter(User.id == user_id).one()
     summ = sum([i.price for i in products])
-    return render_template("cart.html", title="Корзинка", products=products, summ=summ)
+    return render_template("cart.html", title="Корзинка", products=products, money=user.money, summ=summ)
 
 
 @app.route('/buy_cart/<int:user_id>')
@@ -286,7 +305,6 @@ def buy_cart(user_id):
         session.delete(product)
         session.commit()
     return render_template("buy.html", title="Поздравляем с покупкой!")
-
 
 def main():
     app.run()

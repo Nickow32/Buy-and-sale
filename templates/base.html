@@ -12,16 +12,16 @@
 <body>
 <header>
     <nav class="navbar navbar-light bg-light">
-        <a class="navbar-brand" href="/">Главная</a>
-        <a class="navbar-brand" href="/help">Помощь</a>
+        <a class="btn btn-outline-primary" href="/">Главная</a>
+        <a class="btn btn-success"ы href="/help">Помощь</a>
         {% if current_user.is_authenticated %}
-        <a class="navbar-brand" href="/logout">Выйти</a>
-        <a class="navbar-brand" href="/cart/{{current_user.id}}">Корзина</a>
-        <a class="navbar-brand" href="/user/{{current_user.id}}">{{ current_user.name }}</a>
+        <a class="btn btn-danger" href="/logout">Выйти</a>
+        <a class="btn btn-warning" href="/cart/{{current_user.id}}">Корзина</a>
+        <a class="btn btn-primary" href="/user/{{current_user.id}}">Мой профиль: "{{ current_user.name }}"</a>
         {% else %}
         <p>
             <a class="btn btn-primary " href="/register">Зарегистрироваться</a>
-            <a class="btn btn-success" href="/login">Войти</a>
+            <a class="btn btn-info" href="/login">Войти</a>
         </p>
         {% endif %}
     </nav>
